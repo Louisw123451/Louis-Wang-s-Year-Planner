@@ -27,15 +27,17 @@ body {
 
 /* ── Rotating word fade-slide animation ── */
 @keyframes wordIn {
-  0%   { opacity: 0; transform: translateY(14px); }
+  0%   { opacity: 0; transform: translateY(10px); }
   20%  { opacity: 1; transform: translateY(0); }
   80%  { opacity: 1; transform: translateY(0); }
-  100% { opacity: 0; transform: translateY(-14px); }
+  100% { opacity: 0; transform: translateY(-10px); }
 }
 .word-cycle {
   display: inline-block;
   animation: wordIn 3s ease-in-out infinite;
   white-space: nowrap;
+  overflow: visible;
+  padding-bottom: 0.15em;
 }
 
 /* ── Google Translate widget dark-mode overrides ── */

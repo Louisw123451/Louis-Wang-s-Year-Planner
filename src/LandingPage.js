@@ -270,7 +270,7 @@ export default function LandingPage({ onOpen }) {
           >
             Plan your entire
           </span>
-          <span className="block text-center" style={{ minHeight: '1.2em' }}>
+          <span className="block text-center" style={{ minHeight: '1.4em', overflow: 'visible', lineHeight: '1.4' }}>
             <span
               key={wordIdx}
               className="word-cycle hero-gradient-text text-transparent"
