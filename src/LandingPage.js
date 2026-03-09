@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 
 const PROJECTS_KEY = 'ganttProjects';
 const THEME_KEY    = 'ganttTheme';
