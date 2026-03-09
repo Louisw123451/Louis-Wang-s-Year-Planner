@@ -35,6 +35,7 @@ body {
 .word-cycle {
   display: inline-block;
   animation: wordIn 3s ease-in-out infinite;
+  white-space: nowrap;
 }
 
 /* ── Google Translate widget dark-mode overrides ── */

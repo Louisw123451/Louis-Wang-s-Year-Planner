@@ -253,24 +253,23 @@ export default function LandingPage({ onOpen }) {
 
 
       {/* 鈹€鈹€ HERO 鈹€鈹€ */}
-      <section className={`relative flex flex-col items-center justify-center text-center pt-28 pb-20 px-6 ${isDark ? '' : 'bg-gradient-to-b from-white to-slate-100'}`}>
+      <section className={`relative flex flex-col items-center justify-center text-center pt-32 pb-24 px-6 overflow-hidden ${isDark ? '' : 'bg-gradient-to-b from-white to-slate-100'}`}>
         {/* glow blobs */}
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[700px] h-[400px] rounded-full blur-[120px] pointer-events-none" style={{ backgroundColor: accentCfg.glow }} />
-        <div className="absolute top-24 left-1/4 w-[300px] h-[300px] rounded-full blur-[100px] pointer-events-none opacity-50" style={{ backgroundColor: accentCfg.glow }} />
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[300px] rounded-full blur-[100px] pointer-events-none -z-10" style={{ backgroundColor: accentCfg.glow }} />
+        <div className="absolute top-20 left-1/4 w-[250px] h-[250px] rounded-full blur-[80px] pointer-events-none opacity-40 -z-10" style={{ backgroundColor: accentCfg.glow }} />
 
         <span className={`inline-block mb-4 px-3 py-1 rounded-full text-xs font-semibold border tracking-widest uppercase ${isDark ? 'bg-blue-500/20 text-blue-300 border-blue-500/30' : 'bg-blue-100 text-blue-600 border-blue-300'}`}>
           Visual Planning Tool
         </span>
 
         {/* Animated headline */}
-        <h1 className="text-6xl sm:text-7xl font-extrabold leading-tight mb-6 text-center w-full">
+        <h1 className="text-5xl sm:text-6xl md:text-7xl font-extrabold leading-tight mb-6 text-center w-full">
           <span
             className="hero-gradient-text text-transparent block"
             style={{ backgroundImage: `linear-gradient(135deg, ${accentCfg.from}, ${accentCfg.via}, ${accentCfg.to})` }}
           >
             Plan your entire
           </span>
-          {/* rotating word — own centered line so layout never shifts */}
           <span className="block text-center" style={{ minHeight: '1.2em' }}>
             <span
               key={wordIdx}
