@@ -190,7 +190,7 @@ export default function LandingPage({ onOpen }) {
 
   const formatRange = (s, e) => {
     const fmt = (d) => new Date(`${d}T00:00:00`).toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
-    return `${fmt(s)} 鈫?${fmt(e)}`;
+    return `${fmt(s)} \u2192 ${fmt(e)}`;
   };
 
   return (
@@ -288,7 +288,7 @@ export default function LandingPage({ onOpen }) {
         </h1>
 
         <p className={`text-lg max-w-xl mb-10 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-          A fast, visual Gantt chart planner. Create tasks, drag them across a timeline, and keep every project on track 鈥?no sign鈥憉p required.
+          A fast, visual Gantt chart planner. Create tasks, drag them across a timeline, and keep every project on track — no sign-up required.
         </p>
         <div className="flex gap-4 flex-wrap justify-center">
           <button
@@ -296,7 +296,7 @@ export default function LandingPage({ onOpen }) {
             style={{ backgroundColor: accentCfg.btnBg }}
             className="px-7 py-3 rounded-xl text-base font-semibold text-white shadow-lg transition hover:opacity-90"
           >
-            Create your first planner 鈫?
+            Create your first planner &rarr;
           </button>
           {projects.length > 0 && (
             <a href="#planners" className={`px-7 py-3 rounded-xl text-base font-semibold border transition ${isDark ? 'border-white/20 hover:bg-white/10' : 'border-slate-300 hover:bg-slate-200'}`}>
@@ -342,7 +342,7 @@ export default function LandingPage({ onOpen }) {
 
           {projects.length === 0 ? (
             <div className={`flex flex-col items-center justify-center text-center py-20 rounded-2xl border border-dashed ${isDark ? 'border-white/15' : 'border-slate-300'}`}>
-              <div className="text-5xl mb-4">馃搮</div>
+              <div className="text-5xl mb-4">📅</div>
               <div className="text-lg font-semibold mb-2">No planners yet</div>
               <p className={`text-sm mb-6 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>Create your first planner or import a JSON export.</p>
               <button
