@@ -197,13 +197,13 @@ export default function LandingPage({ onOpen }) {
     <div className={`min-h-screen font-sans transition-colors duration-300 ${isDark ? 'bg-[#0b0f1a] text-white' : 'bg-slate-100 text-slate-900'}`}>
 
       {/* 鈹€鈹€ NAV 鈹€鈹€ */}
-      <nav className={`fixed top-0 inset-x-0 z-50 flex items-center justify-between px-6 py-3 backdrop-blur border-b transition-colors duration-300 ${isDark ? 'bg-[#0b0f1a]/85 border-white/5' : 'bg-white/85 border-slate-200'}`}>
+      <nav className={`fixed top-0 inset-x-0 z-50 flex items-center justify-between px-6 py-4 backdrop-blur border-b transition-colors duration-300 ${isDark ? 'bg-[#0b0f1a]/85 border-white/5' : 'bg-white/85 border-slate-200'}`}>
         {/* Left: logo + title */}
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-[#1a1a2e] flex items-center justify-center shrink-0 overflow-hidden">
+          <div className="w-10 h-10 rounded-xl bg-[#1a1a2e] flex items-center justify-center shrink-0 overflow-hidden">
             <img src="/gantt-planner-logo.svg" alt="logo" className="w-full h-full object-contain" />
           </div>
-          <span className="font-bold text-lg tracking-tight">Louis Wang's Year Planner</span>
+          <span className="font-bold text-xl tracking-tight">Louis Wang's Year Planner</span>
         </div>
 
         {/* Right: Google Translate + colour dots + theme toggle + action buttons */}
@@ -235,7 +235,7 @@ export default function LandingPage({ onOpen }) {
           </button>
 
           {/* Import */}
-          <label className={`px-4 py-2 rounded-lg text-sm font-medium border cursor-pointer transition ${isDark ? 'border-white/20 hover:bg-white/10' : 'border-slate-300 hover:bg-slate-200'}`}>
+          <label className={`px-4 py-2 rounded-lg text-base font-medium border cursor-pointer transition ${isDark ? 'border-white/20 hover:bg-white/10' : 'border-slate-300 hover:bg-slate-200'}`}>
             <input ref={importRef} type="file" accept=".json" onChange={importFile} className="hidden" />
             Import JSON
           </label>
@@ -244,7 +244,7 @@ export default function LandingPage({ onOpen }) {
           <button
             onClick={() => setShowCreate(true)}
             style={{ backgroundColor: accentCfg.btnBg }}
-            className="px-4 py-2 rounded-lg text-sm font-semibold text-white transition hover:opacity-90"
+            className="px-4 py-2 rounded-lg text-base font-semibold text-white transition hover:opacity-90"
           >
             + New Planner
           </button>
