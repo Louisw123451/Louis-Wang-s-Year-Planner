@@ -1,0 +1,1285 @@
+﻿import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { Plus, Trash2, Save, Undo, Redo, X, MessageSquare, ArrowLeft } from 'lucide-react';
+import LandingPage from './LandingPage';
+
+const NAME_COLUMN_WIDTH = 200;
+const DATE_COLUMN_WIDTH = 160;
+const DURATION_COLUMN_WIDTH = 100;
+const COLOR_COLUMN_WIDTH = 80;
+const BASE_DAY_WIDTH = 28;
+const DEFAULT_ZOOM = 1;
+const MS_PER_DAY = 24 * 60 * 60 * 1000;
+const DEFAULT_MIN_DATE = '2025-11-01';
+const DEFAULT_MAX_DATE = '2026-12-31';
+const LEFT_PANEL_WIDTH = NAME_COLUMN_WIDTH + DATE_COLUMN_WIDTH * 2 + DURATION_COLUMN_WIDTH + COLOR_COLUMN_WIDTH;
+const TASKS_STORAGE_KEY = 'ganttTasks';
+const TIMELINE_STORAGE_KEY = 'ganttTimelineRange';
+
+const COLOR_OPTIONS = [
+	{ value: '#3b82f6', name: 'Blue' },
+	{ value: '#10b981', name: 'Green' },
+	{ value: '#f59e0b', name: 'Orange' },
+	{ value: '#8b5cf6', name: 'Purple' },
+	{ value: '#ec4899', name: 'Pink' },
+	{ value: '#06b6d4', name: 'Cyan' },
+	{ value: '#ef4444', name: 'Red' }
+];
+
+const clampZoomValue = (value) => Math.min(2, Math.max(0.2, value));
+
+const parseDate = (iso) => new Date(`${iso}T00:00:00`);
+
+const toISODate = (date) => {
+	const zoned = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
+	return zoned.toISOString().split('T')[0];
+};
+
+const clampDate = (iso, minDate, maxDate) => {
+	const candidate = parseDate(iso || minDate);
+	const min = parseDate(minDate);
+	const max = parseDate(maxDate);
+	if (Number.isNaN(candidate.getTime())) return minDate;
+	if (candidate < min) return minDate;
+	if (candidate > max) return maxDate;
+	return toISODate(candidate);
+};
+
+const addDays = (iso, days, minDate, maxDate) => {
+	const base = parseDate(iso);
+	base.setDate(base.getDate() + days);
+	return clampDate(toISODate(base), minDate, maxDate);
+};
+
+const compareDates = (a, b) => parseDate(a).getTime() - parseDate(b).getTime();
+
+const diffDays = (start, end) => {
+	const startDate = parseDate(start);
+	const endDate = parseDate(end);
+	return Math.round((endDate - startDate) / MS_PER_DAY);
+};
+
+const durationInDays = (start, end) => diffDays(start, end) + 1;
+
+
+const formatDisplayDate = (iso) =>
+	parseDate(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+
+const sanitizeTask = (task, minDate, maxDate) => {
+	const start = clampDate(task.start || minDate, minDate, maxDate);
+	let end = clampDate(task.end || start, minDate, maxDate);
+	if (compareDates(start, end) > 0) end = start;
+	return {
+		id: task.id ?? Date.now(),
+		name: String(task.name || 'Untitled Task'),
+		start,
+		end,
+		color: COLOR_OPTIONS.find((option) => option.value === task.color)?.value || COLOR_OPTIONS[0].value
+	};
+};
+
+const loadTasksFromStorage = (projectId, minDate, maxDate) => {
+	try {
+		const key = projectId ? `ganttTasks_${projectId}` : TASKS_STORAGE_KEY;
+		const raw = localStorage.getItem(key);
+		if (!raw) return [];
+		const parsed = JSON.parse(raw);
+		if (!Array.isArray(parsed)) return [];
+		return parsed.map((task) => sanitizeTask(task, minDate, maxDate));
+	} catch (error) {
+		return [];
+	}
+};
+
+const loadTimelineRange = (projectId) => {
+	try {
+		const key = projectId ? `ganttTimelineRange_${projectId}` : TIMELINE_STORAGE_KEY;
+		const raw = localStorage.getItem(key);
+		if (!raw) {
+			return { start: DEFAULT_MIN_DATE, end: DEFAULT_MAX_DATE };
+		}
+		const parsed = JSON.parse(raw);
+		if (!parsed || !parsed.start || !parsed.end) {
+			return { start: DEFAULT_MIN_DATE, end: DEFAULT_MAX_DATE };
+		}
+		const startDate = parseDate(parsed.start);
+		const endDate = parseDate(parsed.end);
+		if (Number.isNaN(startDate.getTime()) || Number.isNaN(endDate.getTime())) {
+			return { start: DEFAULT_MIN_DATE, end: DEFAULT_MAX_DATE };
+		}
+		let start = toISODate(startDate);
+		let end = toISODate(endDate);
+		if (compareDates(start, end) > 0) {
+			[start, end] = [end, start];
+		}
+		return { start, end };
+	} catch (error) {
+		return { start: DEFAULT_MIN_DATE, end: DEFAULT_MAX_DATE };
+	}
+};
+
+const createDefaultNewTask = (rangeStart, rangeEnd) => {
+	const totalSpan = Math.max(0, durationInDays(rangeStart, rangeEnd) - 1);
+	const offset = Math.min(29, totalSpan);
+	return {
+		name: '',
+		start: rangeStart,
+		end: addDays(rangeStart, offset, rangeStart, rangeEnd),
+		color: COLOR_OPTIONS[0].value,
+		notes: ''
+	};
+};
+
+const generateMonthSegments = (startISO, endISO) => {
+	const segments = [];
+	const start = parseDate(startISO);
+	const end = parseDate(endISO);
+	let cursor = new Date(start.getFullYear(), start.getMonth(), 1);
+
+	while (cursor <= end) {
+		const monthStart = new Date(cursor);
+		const monthEnd = new Date(cursor.getFullYear(), cursor.getMonth() + 1, 0);
+		const visibleStart = monthStart < start ? start : monthStart;
+		const visibleEnd = monthEnd > end ? end : monthEnd;
+		const days = Math.round((visibleEnd - visibleStart) / MS_PER_DAY) + 1;
+		segments.push({
+			key: `${monthStart.getFullYear()}-${monthStart.getMonth()}`,
+			label: `${monthStart.toLocaleString('default', { month: 'short' })} ${monthStart.getFullYear()}`,
+			days,
+			startDay: visibleStart.getDate()
+		});
+		cursor.setMonth(cursor.getMonth() + 1);
+	}
+
+	return segments;
+};
+
+export default function App() {
+	const [currentView, setCurrentView] = useState('landing'); // 'landing' or 'project'
+	const [currentProjectId, setCurrentProjectId] = useState(null);
+	const [timelineRange, setTimelineRange] = useState(() => loadTimelineRange(currentProjectId));
+	const [tasks, setTasks] = useState(() => loadTasksFromStorage(currentProjectId, timelineRange.start, timelineRange.end));
+	const [history, setHistory] = useState([]);
+	const [future, setFuture] = useState([]);
+	const [showForm, setShowForm] = useState(false);
+	const [newTask, setNewTask] = useState(() => createDefaultNewTask(timelineRange.start, timelineRange.end));
+	const [zoom, setZoom] = useState(DEFAULT_ZOOM);
+	const [editingTaskId, setEditingTaskId] = useState(null);
+	const [editingName, setEditingName] = useState('');
+	const [draggingTaskId, setDraggingTaskId] = useState(null);
+	const [resizingTaskId, setResizingTaskId] = useState(null);
+	const [importError, setImportError] = useState(null);
+	const [pendingDelete, setPendingDelete] = useState(null);
+	const [isEditingTimeline, setIsEditingTimeline] = useState(false);
+	const [timelineDraft, setTimelineDraft] = useState(() => ({ start: timelineRange.start, end: timelineRange.end }));
+	const [timelineError, setTimelineError] = useState(null);
+	const [colorPickerOpen, setColorPickerOpen] = useState(null);
+	const [notesTaskId, setNotesTaskId] = useState(null);
+	const [notesText, setNotesText] = useState('');
+
+	const timelineStart = timelineRange.start;
+	const timelineEnd = timelineRange.end;
+
+	const timelineScrollRef = useRef(null);
+	const dragStateRef = useRef(null);
+	const resizeStateRef = useRef(null);
+
+	const totalTimelineDays = useMemo(() => Math.max(1, durationInDays(timelineStart, timelineEnd)), [timelineStart, timelineEnd]);
+	const dayWidth = BASE_DAY_WIDTH * zoom;
+	const timelineWidth = totalTimelineDays * dayWidth;
+	const useVerticalDayLabels = dayWidth < 16;
+	const dayLabelStyle = useVerticalDayLabels ? { writingMode: 'vertical-rl', transform: 'rotate(180deg)' } : {};
+	const dayLabelClass = useVerticalDayLabels ? 'text-[10px] leading-tight' : 'text-xs';
+
+	const monthSegments = useMemo(() => generateMonthSegments(timelineStart, timelineEnd), [timelineStart, timelineEnd]);
+
+	useEffect(() => {
+		if (currentProjectId) {
+			localStorage.setItem(`ganttTasks_${currentProjectId}`, JSON.stringify(tasks));
+		} else {
+			localStorage.setItem(TASKS_STORAGE_KEY, JSON.stringify(tasks));
+		}
+	}, [tasks, currentProjectId]);
+
+	useEffect(() => {
+		if (currentProjectId) {
+			localStorage.setItem(`ganttTimelineRange_${currentProjectId}`, JSON.stringify(timelineRange));
+		} else {
+			localStorage.setItem(TIMELINE_STORAGE_KEY, JSON.stringify(timelineRange));
+		}
+	}, [timelineRange, currentProjectId]);
+
+	useEffect(() => {
+		setTasks((prev) => {
+			let changed = false;
+			const next = prev.map((task) => {
+				const start = clampDate(task.start, timelineStart, timelineEnd);
+				let end = clampDate(task.end, timelineStart, timelineEnd);
+				if (compareDates(start, end) > 0) end = start;
+				if (start !== task.start || end !== task.end) {
+					changed = true;
+					return { ...task, start, end };
+				}
+				return task;
+			});
+			return changed ? next : prev;
+		});
+	}, [timelineStart, timelineEnd]);
+
+	useEffect(() => {
+		setNewTask((prev) => {
+			const start = clampDate(prev.start, timelineStart, timelineEnd);
+			let end = clampDate(prev.end, timelineStart, timelineEnd);
+			if (compareDates(start, end) > 0) end = start;
+			if (start === prev.start && end === prev.end) return prev;
+			return { ...prev, start, end };
+		});
+	}, [timelineStart, timelineEnd]);
+
+	useEffect(() => {
+		if (isEditingTimeline) return;
+		setTimelineDraft({ start: timelineStart, end: timelineEnd });
+	}, [timelineStart, timelineEnd, isEditingTimeline]);
+
+	const commitSnapshot = useCallback(() => {
+		setHistory((prev) => [...prev, tasks.map((task) => ({ ...task }))].slice(-50));
+		setFuture([]);
+	}, [tasks]);
+
+	const undoChange = useCallback(() => {
+		setHistory((prevHistory) => {
+			if (!prevHistory.length) return prevHistory;
+			const snapshot = prevHistory[prevHistory.length - 1];
+			setFuture((prevFuture) => [tasks.map((task) => ({ ...task })), ...prevFuture].slice(0, 50));
+			setTasks(snapshot.map((task) => ({ ...task })));
+			return prevHistory.slice(0, -1);
+		});
+	}, [tasks]);
+
+	const redoChange = useCallback(() => {
+		setFuture((prevFuture) => {
+			if (!prevFuture.length) return prevFuture;
+			const [snapshot, ...rest] = prevFuture;
+			setHistory((prevHistory) => [...prevHistory, tasks.map((task) => ({ ...task }))].slice(-50));
+			setTasks(snapshot.map((task) => ({ ...task })));
+			return rest;
+		});
+	}, [tasks]);
+
+	const canUndo = history.length > 0;
+	const canRedo = future.length > 0;
+	const zoomPercent = Math.round(zoom * 100);
+	const timelineLabel = `${formatDisplayDate(timelineStart)} – ${formatDisplayDate(timelineEnd)}`;
+
+	const changeZoom = useCallback((delta) => {
+		setZoom((prev) => clampZoomValue(prev + delta));
+	}, []);
+
+	const fitTimelineToView = useCallback(() => {
+		const container = timelineScrollRef.current;
+		if (!container) return;
+		const available = container.clientWidth;
+		if (!available) return;
+		const required = clampZoomValue(available / (totalTimelineDays * BASE_DAY_WIDTH));
+		setZoom(required);
+	}, [totalTimelineDays]);
+
+	const handleWheelZoom = useCallback((event) => {
+		if (!event.ctrlKey && !event.metaKey) return;
+		event.preventDefault();
+		const delta = event.deltaY > 0 ? -0.05 : 0.05;
+		setZoom((prev) => clampZoomValue(prev + delta));
+	}, []);
+
+	// Project management handlers
+	const handleSelectProject = useCallback((projectId) => {
+		setCurrentProjectId(projectId);
+		setCurrentView('project');
+		// Reload data for the selected project
+		const projectTimeline = loadTimelineRange(projectId);
+		setTimelineRange(projectTimeline);
+		setTasks(loadTasksFromStorage(projectId, projectTimeline.start, projectTimeline.end));
+		// Reset other state
+		setHistory([]);
+		setFuture([]);
+		setShowForm(false);
+		setEditingTaskId(null);
+		setEditingName('');
+		setDraggingTaskId(null);
+		setResizingTaskId(null);
+		setZoom(DEFAULT_ZOOM);
+	}, []);
+
+	const handleCreateProject = useCallback((projectId) => {
+		setCurrentProjectId(projectId);
+		setCurrentView('project');
+		// Initialize new project with default data
+		setTimelineRange({ start: DEFAULT_MIN_DATE, end: DEFAULT_MAX_DATE });
+		setTasks([]);
+		setHistory([]);
+		setFuture([]);
+		setShowForm(false);
+		setEditingTaskId(null);
+		setEditingName('');
+		setDraggingTaskId(null);
+		setResizingTaskId(null);
+		setZoom(DEFAULT_ZOOM);
+	}, []);
+
+	const handleBackToLanding = useCallback(() => {
+		setCurrentView('landing');
+		setCurrentProjectId(null);
+	}, []);
+
+	const handleNewTaskChange = (field, value) => {
+		setNewTask((prev) => {
+			const next = { ...prev, [field]: value };
+			if (field === 'start' || field === 'end') {
+				next.start = clampDate(next.start, timelineStart, timelineEnd);
+				next.end = clampDate(next.end, timelineStart, timelineEnd);
+				if (compareDates(next.start, next.end) > 0) {
+					if (field === 'start') {
+						next.end = next.start;
+					} else {
+						next.start = next.end;
+					}
+				}
+			}
+			return next;
+		});
+	};
+
+	const handleAddTask = (event) => {
+		event.preventDefault();
+		if (!newTask.name.trim()) {
+			alert('Please enter a task name.');
+			return;
+		}
+		commitSnapshot();
+		setTasks((prev) => [
+			...prev,
+			{
+				id: Date.now(),
+				name: newTask.name.trim(),
+				start: newTask.start,
+				end: newTask.end,
+				color: newTask.color
+			}
+		]);
+		setNewTask(createDefaultNewTask(timelineStart, timelineEnd));
+		setShowForm(false);
+	};
+
+	const handleDeleteTask = (taskId) => {
+		const target = tasks.find((task) => task.id === taskId);
+		if (!target) return;
+		setPendingDelete({ id: target.id, name: target.name });
+	};
+
+	const confirmDeleteTask = () => {
+		if (!pendingDelete) return;
+		commitSnapshot();
+		setTasks((prev) => prev.filter((task) => task.id !== pendingDelete.id));
+		setPendingDelete(null);
+	};
+
+	const cancelDeleteTask = () => {
+		setPendingDelete(null);
+	};
+
+	const beginEditingName = (task) => {
+		setEditingTaskId(task.id);
+		setEditingName(task.name);
+	};
+
+	const commitNameChange = (taskId) => {
+		const trimmed = editingName.trim();
+		setEditingTaskId(null);
+		if (!trimmed) {
+			setEditingName('');
+			return;
+		}
+		commitSnapshot();
+		setTasks((prev) => prev.map((task) => (task.id === taskId ? { ...task, name: trimmed } : task)));
+		setEditingName('');
+	};
+
+	const openNotes = (task) => {
+		setNotesTaskId(task.id);
+		setNotesText(task.notes || '');
+	};
+
+	const closeNotes = () => {
+		setNotesTaskId(null);
+		setNotesText('');
+	};
+
+	const saveNotes = (taskId) => {
+		commitSnapshot();
+		setTasks((prev) => prev.map((task) => (task.id === taskId ? { ...task, notes: notesText } : task)));
+		closeNotes();
+	};
+
+	const handleTaskDateChange = useCallback(
+		(taskId, field, value) => {
+			if (!value) return;
+			const task = tasks.find((item) => item.id === taskId);
+			if (!task) return;
+			const clamped = clampDate(value, timelineStart, timelineEnd);
+			if (field === 'start') {
+				if (clamped === task.start) return;
+				let nextEnd = task.end;
+				if (compareDates(clamped, nextEnd) > 0) nextEnd = clamped;
+				commitSnapshot();
+				setTasks((prev) =>
+					prev.map((item) => (item.id === taskId ? { ...item, start: clamped, end: nextEnd } : item))
+				);
+				return;
+			}
+			if (clamped === task.end) return;
+			let nextStart = task.start;
+			if (compareDates(nextStart, clamped) > 0) nextStart = clamped;
+			commitSnapshot();
+			setTasks((prev) =>
+				prev.map((item) => (item.id === taskId ? { ...item, start: nextStart, end: clamped } : item))
+			);
+		},
+		[tasks, timelineStart, timelineEnd, commitSnapshot]
+	);
+
+	const handleTaskColorChange = useCallback(
+		(taskId, color) => {
+			commitSnapshot();
+			setTasks((prev) =>
+				prev.map((item) => (item.id === taskId ? { ...item, color } : item))
+			);
+		},
+		[commitSnapshot]
+	);
+
+	const openTimelineEditor = () => {
+		setTimelineDraft({ start: timelineStart, end: timelineEnd });
+		setTimelineError(null);
+		setIsEditingTimeline(true);
+	};
+
+	const handleTimelineDraftChange = (field, value) => {
+		setTimelineError(null);
+		setTimelineDraft((prev) => ({ ...prev, [field]: value }));
+	};
+
+	const handleTimelineCancel = () => {
+		setTimelineDraft({ start: timelineStart, end: timelineEnd });
+		setTimelineError(null);
+		setIsEditingTimeline(false);
+	};
+
+	const handleTimelineSave = () => {
+		const { start, end } = timelineDraft;
+		if (!start || !end) {
+			setTimelineError('Please select both start and end dates.');
+			return;
+		}
+		if (compareDates(start, end) > 0) {
+			setTimelineError('Start date must be before end date.');
+			return;
+		}
+		if (start === timelineStart && end === timelineEnd) {
+			setIsEditingTimeline(false);
+			setTimelineError(null);
+			return;
+		}
+		commitSnapshot();
+		setTimelineRange({ start, end });
+		setIsEditingTimeline(false);
+		setTimelineError(null);
+	};
+
+	const handleImportData = (event) => {
+		const file = event.target.files && event.target.files[0];
+		if (!file) return;
+		const reader = new FileReader();
+		reader.onload = () => {
+			try {
+				const parsed = JSON.parse(reader.result);
+				if (!Array.isArray(parsed)) throw new Error('Invalid data');
+				const normalized = parsed.map((task) => sanitizeTask(task, timelineStart, timelineEnd));
+				commitSnapshot();
+				setTasks(normalized);
+				setImportError(null);
+			} catch (error) {
+				setImportError('Unable to import file. Please choose a valid export.');
+			} finally {
+				event.target.value = '';
+			}
+		};
+		reader.readAsText(file);
+	};
+
+	const handleExportData = () => {
+		const blob = new Blob([JSON.stringify(tasks, null, 2)], { type: 'application/json' });
+		const url = URL.createObjectURL(blob);
+		const link = document.createElement('a');
+		link.href = url;
+		link.download = 'gantt-tasks.json';
+		link.click();
+		URL.revokeObjectURL(url);
+	};
+
+	const dateToIndex = useCallback(
+		(iso) => {
+			const clamped = clampDate(iso, timelineStart, timelineEnd);
+			return Math.max(0, Math.min(totalTimelineDays - 1, diffDays(timelineStart, clamped)));
+		},
+		[timelineStart, timelineEnd, totalTimelineDays]
+	);
+
+	const getTaskPosition = useCallback(
+		(start, end) => {
+			const startIndex = dateToIndex(start);
+			const endIndex = Math.max(startIndex, dateToIndex(end));
+			return {
+				left: startIndex * dayWidth,
+				width: Math.max(dayWidth, (endIndex - startIndex + 1) * dayWidth)
+			};
+		},
+		[dateToIndex, dayWidth]
+	);
+
+	const clearDragState = useCallback((pointerId, target) => {
+		const state = dragStateRef.current;
+		if (!state || (pointerId !== undefined && state.pointerId !== pointerId)) return;
+		if (target && target.hasPointerCapture && state.pointerId !== undefined) {
+			try {
+				target.releasePointerCapture(state.pointerId);
+			} catch (error) {
+				/* ignore release errors */
+			}
+		}
+		dragStateRef.current = null;
+		setDraggingTaskId(null);
+	}, []);
+
+	const clearResizeState = useCallback((pointerId, target) => {
+		const state = resizeStateRef.current;
+		if (!state || (pointerId !== undefined && state.pointerId !== pointerId)) return;
+		if (target && target.hasPointerCapture && state.pointerId !== undefined) {
+			try {
+				target.releasePointerCapture(state.pointerId);
+			} catch (error) {
+				/* ignore release errors */
+			}
+		}
+		resizeStateRef.current = null;
+		setResizingTaskId(null);
+	}, []);
+
+	const handleBarPointerDown = useCallback(
+		(taskId, event) => {
+			if (event.button !== 0) return;
+			if (event.target.closest('[data-no-drag]')) return;
+			const task = tasks.find((item) => item.id === taskId);
+			if (!task) return;
+			commitSnapshot();
+			event.preventDefault();
+			const pointerId = event.pointerId;
+			event.currentTarget.setPointerCapture(pointerId);
+			dragStateRef.current = {
+				pointerId,
+				taskId,
+				startX: event.clientX,
+				originStart: task.start,
+				originEnd: task.end,
+				lastStart: task.start,
+				lastEnd: task.end
+			};
+			setDraggingTaskId(taskId);
+		},
+		[tasks, commitSnapshot]
+	);
+
+	const handleBarPointerMove = useCallback(
+		(event) => {
+			const state = dragStateRef.current;
+			if (!state || state.pointerId !== event.pointerId) return;
+			event.preventDefault();
+			const deltaPixels = event.clientX - state.startX;
+			const deltaDays = Math.round(deltaPixels / dayWidth);
+			if (!deltaDays) return;
+			const duration = durationInDays(state.originStart, state.originEnd);
+			let candidateStart = addDays(state.originStart, deltaDays, timelineStart, timelineEnd);
+			const latestStart = addDays(timelineEnd, -(duration - 1), timelineStart, timelineEnd);
+			if (compareDates(candidateStart, timelineStart) < 0) candidateStart = timelineStart;
+			if (compareDates(candidateStart, latestStart) > 0) candidateStart = latestStart;
+			const candidateEnd = addDays(candidateStart, duration - 1, timelineStart, timelineEnd);
+			if (candidateStart === state.lastStart && candidateEnd === state.lastEnd) return;
+			state.lastStart = candidateStart;
+			state.lastEnd = candidateEnd;
+			setTasks((prev) =>
+				prev.map((task) => (task.id === state.taskId ? { ...task, start: candidateStart, end: candidateEnd } : task))
+			);
+		},
+		[dayWidth, timelineStart, timelineEnd]
+	);
+
+	const handleBarPointerEnd = useCallback(
+		(event) => {
+			clearDragState(event.pointerId, event.currentTarget);
+		},
+		[clearDragState]
+	);
+
+	const handleResizePointerDown = useCallback(
+		(taskId, edge) => (event) => {
+			if (event.button !== 0) return;
+			const task = tasks.find((item) => item.id === taskId);
+			if (!task) return;
+			commitSnapshot();
+			event.preventDefault();
+			event.stopPropagation();
+			const pointerId = event.pointerId;
+			event.currentTarget.setPointerCapture(pointerId);
+			resizeStateRef.current = {
+				pointerId,
+				taskId,
+				edge,
+				startX: event.clientX,
+				originStart: task.start,
+				originEnd: task.end,
+				lastStart: task.start,
+				lastEnd: task.end
+			};
+			setResizingTaskId(taskId);
+		},
+		[tasks, commitSnapshot]
+	);
+
+	const handleResizePointerMove = useCallback(
+		(event) => {
+			const state = resizeStateRef.current;
+			if (!state || state.pointerId !== event.pointerId) return;
+			event.preventDefault();
+			const deltaPixels = event.clientX - state.startX;
+			const deltaDays = Math.round(deltaPixels / dayWidth);
+			if (!deltaDays) return;
+
+			if (state.edge === 'left') {
+				let nextStart = addDays(state.originStart, deltaDays, timelineStart, timelineEnd);
+				if (compareDates(nextStart, timelineStart) < 0) nextStart = timelineStart;
+				if (compareDates(nextStart, state.lastEnd) > 0) nextStart = state.lastEnd;
+				if (nextStart === state.lastStart) return;
+				state.lastStart = nextStart;
+				setTasks((prev) => prev.map((task) => (task.id === state.taskId ? { ...task, start: nextStart } : task)));
+				return;
+			}
+
+			let nextEnd = addDays(state.originEnd, deltaDays, timelineStart, timelineEnd);
+			if (compareDates(nextEnd, timelineEnd) > 0) nextEnd = timelineEnd;
+			if (compareDates(state.lastStart, nextEnd) > 0) nextEnd = state.lastStart;
+			if (nextEnd === state.lastEnd) return;
+			state.lastEnd = nextEnd;
+			setTasks((prev) => prev.map((task) => (task.id === state.taskId ? { ...task, end: nextEnd } : task)));
+		},
+		[dayWidth, timelineStart, timelineEnd]
+	);
+
+	const handleResizePointerEnd = useCallback(
+		(event) => {
+			clearResizeState(event.pointerId, event.currentTarget);
+		},
+		[clearResizeState]
+	);
+
+	if (currentView === 'landing') {
+		return (
+			<LandingPage
+				onSelectProject={handleSelectProject}
+				onCreateProject={handleCreateProject}
+			/>
+		);
+	}
+
+	// Project view - existing Gantt chart functionality
+	return (
+		<div className="relative min-h-screen w-full bg-gradient-to-br from-slate-50 to-slate-100 px-4 py-6 md:px-8">
+			<div className="mx-auto w-full">
+						<div className="bg-white rounded-xl shadow-lg p-6 mb-6">
+							<div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+								<div className="flex items-center gap-3">
+									<button
+										onClick={handleBackToLanding}
+										className="flex items-center gap-2 px-3 py-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors"
+									>
+										<ArrowLeft className="w-4 h-4" />
+										Back to Projects
+									</button>
+									<div className="flex flex-col gap-1">
+										<h1 className="text-3xl font-bold text-gray-800">Gantt Chart Planner</h1>
+										<p className="text-sm text-gray-600">Project Management & Timeline Visualization</p>
+									</div>
+								</div>
+								<div className="flex flex-wrap items-center gap-2 text-gray-600 text-sm sm:text-base">
+									<span className="font-medium text-gray-700">Timeline:</span>
+									<span>{timelineLabel}</span>
+									<button
+										type="button"
+										onClick={openTimelineEditor}
+										className="text-blue-600 hover:text-blue-700 font-semibold"
+									>
+										Change
+									</button>
+								</div>
+							</div>
+						</div>
+
+						<div className="flex flex-wrap gap-3 items-center justify-end">
+							<div className="flex items-center gap-2 bg-slate-100 border border-slate-200 rounded-lg px-3 py-2 text-sm text-gray-600">
+								<button
+									type="button"
+									onClick={undoChange}
+									disabled={!canUndo}
+									className={`flex items-center gap-1 px-3 py-1 rounded transition-colors ${canUndo ? 'bg-orange-600 text-white hover:bg-orange-700' : 'bg-slate-200 text-slate-500 cursor-not-allowed'}`}
+								>
+									<Undo className="w-4 h-4" />
+									Undo
+								</button>
+								<button
+									type="button"
+									onClick={redoChange}
+									disabled={!canRedo}
+									className={`flex items-center gap-1 px-3 py-1 rounded transition-colors ${canRedo ? 'bg-blue-600 text-white hover:bg-blue-700' : 'bg-slate-200 text-slate-500 cursor-not-allowed'}`}
+								>
+									<Redo className="w-4 h-4" />
+									Redo
+								</button>
+							</div>
+
+							<div className="flex flex-wrap items-center gap-2 bg-slate-100 border border-slate-200 rounded-lg px-3 py-2 text-sm text-gray-600">
+								<span className="font-medium">Zoom</span>
+								<button type="button" onClick={() => changeZoom(-0.1)} className="px-2 py-1 rounded bg-white border border-slate-200 hover:border-slate-300">
+									−
+								</button>
+								<input
+									type="range"
+									min="0.2"
+									max="2"
+									step="0.05"
+									value={zoom}
+									onChange={(event) => setZoom(clampZoomValue(parseFloat(event.target.value)))}
+									className="w-32 accent-blue-600"
+								/>
+								<button type="button" onClick={() => changeZoom(0.1)} className="px-2 py-1 rounded bg-white border border-slate-200 hover:border-slate-300">
+									+
+								</button>
+								<span className="w-16 text-right font-semibold text-gray-700">{zoomPercent}%</span>
+								<button type="button" onClick={fitTimelineToView} className="px-2 py-1 rounded bg-white border border-slate-200 hover:border-slate-300">
+									Fit
+								</button>
+								<button type="button" onClick={() => setZoom(DEFAULT_ZOOM)} className="px-2 py-1 rounded bg-white border border-slate-200 hover:border-slate-300">
+									Reset
+								</button>
+								<span className="text-xs text-gray-500">Tip: hold Ctrl/Cmd + scroll to zoom</span>
+							</div>
+
+							<button onClick={handleExportData} className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors">
+								<Save className="w-5 h-5" />
+								Export
+							</button>
+							<label className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors cursor-pointer">
+								<input type="file" accept=".json" onChange={handleImportData} className="hidden" />
+								Import
+							</label>
+							<button onClick={() => setShowForm((prev) => !prev)} className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+								<Plus className="w-5 h-5" />
+								Add Task
+							</button>
+						</div>
+					</div>
+					{isEditingTimeline && (
+						<div className="mt-4 bg-slate-50 border-2 border-blue-200 rounded-lg p-4">
+							<div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+								<div>
+									<label className="block text-sm font-medium text-gray-700 mb-1">Timeline Start</label>
+									<input
+										type="date"
+										value={timelineDraft.start}
+										onChange={(event) => handleTimelineDraftChange('start', event.target.value)}
+										max={timelineDraft.end}
+										className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+									/>
+								</div>
+								<div>
+									<label className="block text-sm font-medium text-gray-700 mb-1">Timeline End</label>
+									<input
+										type="date"
+										value={timelineDraft.end}
+										onChange={(event) => handleTimelineDraftChange('end', event.target.value)}
+										min={timelineDraft.start}
+										className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+									/>
+								</div>
+								<div className="md:col-span-3 flex items-end gap-3">
+									<button
+										type="button"
+										onClick={handleTimelineSave}
+										className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+									>
+										Apply
+									</button>
+									<button
+										type="button"
+										onClick={handleTimelineCancel}
+										className="px-4 py-2 bg-white border border-slate-300 text-gray-700 rounded-lg hover:bg-slate-100 transition-colors"
+									>
+										Cancel
+									</button>
+								</div>
+							</div>
+							{timelineError && <p className="mt-3 text-sm text-red-600">{timelineError}</p>}
+						</div>
+					)}
+					{importError && <p className="mt-4 text-sm text-red-600">{importError}</p>}
+
+					{showForm && (
+						<form onSubmit={handleAddTask} className="mt-6 bg-slate-50 rounded-lg p-4 border-2 border-blue-200 relative">
+							<button
+								type="button"
+								onClick={() => setShowForm(false)}
+								className="absolute top-3 right-3 text-gray-500 hover:text-gray-700 transition-colors"
+								aria-label="Close form"
+							>
+								<X className="w-5 h-5" />
+							</button>
+							<div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+								<div>
+									<label className="block text-sm font-medium text-gray-700 mb-1">Task Name</label>
+									<input
+										type="text"
+										value={newTask.name}
+										onChange={(event) => handleNewTaskChange('name', event.target.value)}
+										placeholder="Enter task name"
+										className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+									/>
+								</div>
+								<div>
+									<label className="block text-sm font-medium text-gray-700 mb-1 -ml-1">Start Date</label>
+									<input
+										type="date"
+										value={newTask.start}
+														min={timelineStart}
+														max={timelineEnd}
+										onChange={(event) => handleNewTaskChange('start', event.target.value)}
+										className="w-full pl-3 pr-10 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+									/>
+								</div>
+								<div>
+									<label className="block text-sm font-medium text-gray-700 mb-1 -ml-1">End Date</label>
+									<input
+										type="date"
+										value={newTask.end}
+														min={timelineStart}
+														max={timelineEnd}
+										onChange={(event) => handleNewTaskChange('end', event.target.value)}
+										className="w-full pl-3 pr-10 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+									/>
+								</div>
+								<div>
+									<label className="block text-sm font-medium text-gray-700 mb-1">Color</label>
+									<div className="relative">
+										<button
+											type="button"
+											className="w-full h-[42px] rounded-lg border-2 border-gray-300 hover:border-gray-600 transition-all flex items-center justify-center"
+											style={{ backgroundColor: newTask.color }}
+											onClick={(e) => {
+												const rect = e.currentTarget.getBoundingClientRect();
+												const pickerData = { 
+													id: 'newTask', 
+													top: rect.top - 160, 
+													left: rect.left + rect.width / 2 
+												};
+												setColorPickerOpen(colorPickerOpen?.id === 'newTask' ? null : pickerData);
+											}}
+										>
+											<span className="text-sm font-medium text-white mix-blend-difference">
+												{COLOR_OPTIONS.find(opt => opt.value === newTask.color)?.name || 'Select Color'}
+											</span>
+										</button>
+									</div>
+								</div>
+								<div className="flex items-end">
+									<button type="submit" className="w-full h-[42px] bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+										Save Task
+									</button>
+								</div>
+							</div>
+						</form>
+					)}
+				</div>
+
+			{notesTaskId && (
+				<div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[9999]">
+					<div className="bg-white rounded-lg shadow-2xl p-6 w-full max-w-md mx-4">
+						<div className="flex items-center justify-between mb-4">
+							<h3 className="text-lg font-semibold text-gray-900">
+								Notes for "{tasks.find(t => t.id === notesTaskId)?.name}"
+							</h3>
+							<button
+								type="button"
+								onClick={closeNotes}
+								className="text-gray-500 hover:text-gray-700 transition-colors"
+							>
+								<X className="w-5 h-5" />
+							</button>
+						</div>
+						<textarea
+							value={notesText}
+							onChange={(e) => setNotesText(e.target.value)}
+							placeholder="Add notes for this task..."
+							className="w-full h-32 p-3 border border-gray-300 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+							autoFocus
+						/>
+						<div className="flex justify-end gap-3 mt-4">
+							<button
+								type="button"
+								onClick={closeNotes}
+								className="px-4 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+							>
+								Cancel
+							</button>
+							<button
+								type="button"
+								onClick={() => saveNotes(notesTaskId)}
+								className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+							>
+								Save Notes
+							</button>
+						</div>
+					</div>
+				</div>
+			)}
+
+			<div className="bg-white rounded-xl shadow-lg border border-slate-200 overflow-x-hidden">
+					<div className="grid" style={{ gridTemplateColumns: `${LEFT_PANEL_WIDTH}px minmax(0, 1fr)` }}>
+						<div className="border-r border-slate-200 pb-4" style={{ width: LEFT_PANEL_WIDTH }}>
+						<div
+							className="grid border-b border-slate-200 bg-slate-50"
+							style={{ gridTemplateColumns: `${NAME_COLUMN_WIDTH}px ${DATE_COLUMN_WIDTH}px ${DATE_COLUMN_WIDTH}px ${DURATION_COLUMN_WIDTH}px ${COLOR_COLUMN_WIDTH}px` }}
+						>
+							<div className="px-3 py-2 text-sm font-semibold text-gray-700">Task Name</div>
+							<div className="px-3 py-2 text-sm font-semibold text-gray-700">Start Date</div>
+							<div className="px-3 py-2 text-sm font-semibold text-gray-700">End Date</div>
+							<div className="px-3 py-2 text-sm font-semibold text-gray-700">Duration</div>
+							<div className="px-3 py-2 text-sm font-semibold text-gray-700">Color</div>
+						</div>							<div>
+								{tasks.map((task) => {
+									const isActive = draggingTaskId === task.id || resizingTaskId === task.id;
+									return (
+										<div
+											key={task.id}
+											className={`grid border-b border-slate-200 text-sm text-gray-800 h-12 ${isActive ? 'bg-blue-50/60' : 'bg-white'}`}
+											style={{ gridTemplateColumns: `${NAME_COLUMN_WIDTH}px ${DATE_COLUMN_WIDTH}px ${DATE_COLUMN_WIDTH}px ${DURATION_COLUMN_WIDTH}px ${COLOR_COLUMN_WIDTH}px` }}
+										>
+											<div className="flex items-center gap-2 px-3">
+												<button
+													type="button"
+													onClick={() => handleDeleteTask(task.id)}
+													className="p-1 rounded text-red-600 hover:bg-red-50"
+													aria-label={`Delete ${task.name}`}
+												>
+													<Trash2 className="w-4 h-4" />
+												</button>
+												<button
+													type="button"
+													onClick={() => openNotes(task)}
+													className="p-1 rounded text-gray-600 hover:bg-gray-50"
+													aria-label={`Notes for ${task.name}`}
+												>
+													<MessageSquare className="w-4 h-4" />
+												</button>
+												<button
+													type="button"
+													onClick={() => beginEditingName(task)}
+													className="flex-1 text-left font-medium text-gray-700 hover:text-blue-600"
+												>
+													{task.name}
+												</button>
+											</div>
+											<div className="px-3 flex items-center">
+												<input
+													type="date"
+													value={task.start}
+													min={timelineStart}
+													max={timelineEnd}
+													onChange={(event) => handleTaskDateChange(task.id, 'start', event.target.value)}
+													className="w-full rounded border border-slate-200 pl-2 pr-8 py-1 text-sm font-medium text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+												/>
+											</div>
+											<div className="px-3 flex items-center">
+												<input
+													type="date"
+													value={task.end}
+													min={timelineStart}
+													max={timelineEnd}
+													onChange={(event) => handleTaskDateChange(task.id, 'end', event.target.value)}
+													className="w-full rounded border border-slate-200 pl-2 pr-8 py-1 text-sm font-medium text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+												/>
+											</div>
+											<div className="px-3 flex items-center">
+												<span className="text-base font-medium text-gray-700">
+													{durationInDays(task.start, task.end)} day{durationInDays(task.start, task.end) !== 1 ? 's' : ''}
+												</span>
+											</div>
+											<div className="px-3 flex items-center">
+												<div className="relative">
+													<button
+														type="button"
+														className="w-8 h-8 rounded border-2 border-gray-300 hover:border-gray-600 transition-all"
+														style={{ backgroundColor: task.color }}
+														onClick={(e) => {
+															const rect = e.currentTarget.getBoundingClientRect();
+															const pickerData = { 
+																id: task.id, 
+																top: rect.top - 160, 
+																left: rect.left + rect.width / 2 
+															};
+															setColorPickerOpen(colorPickerOpen?.id === task.id ? null : pickerData);
+														}}
+													/>
+												</div>
+											</div>
+										</div>
+									);
+								})}
+								<div className="grid border-b border-slate-200 h-12"
+									style={{ gridTemplateColumns: `${NAME_COLUMN_WIDTH}px ${DATE_COLUMN_WIDTH}px ${DATE_COLUMN_WIDTH}px ${DURATION_COLUMN_WIDTH}px ${COLOR_COLUMN_WIDTH}px` }}
+								>
+									<div className="col-span-5 flex items-center justify-center">
+										<button
+											type="button"
+											onClick={() => setShowForm(true)}
+											className="w-10 h-10 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors flex items-center justify-center"
+											aria-label="Add more tasks"
+										>
+											<Plus className="w-5 h-5" />
+										</button>
+									</div>
+								</div>
+							</div>
+						</div>
+
+						<div className="relative min-w-0">
+							<div ref={timelineScrollRef} className="overflow-x-scroll pb-4" onWheel={handleWheelZoom}>
+								<div style={{ minWidth: '100%', width: `${timelineWidth}px` }}>
+									<div className="sticky top-0 z-10 bg-white">
+										<div className="flex border-b border-slate-200" style={{ width: `${timelineWidth}px` }}>
+											{monthSegments.map((month) => (
+												<div
+													key={month.key}
+													className="flex items-center justify-center border-l border-slate-200 bg-slate-50 text-sm font-semibold text-gray-700"
+													style={{ width: `${month.days * dayWidth}px` }}
+												>
+													{month.label}
+												</div>
+											))}
+										</div>
+										<div className="flex border-b border-slate-200" style={{ width: `${timelineWidth}px` }}>
+											{monthSegments.map((month) => {
+												const [year, monthIndex] = month.key.split('-').map(Number);
+												const segmentStart = new Date(year, monthIndex, month.startDay);
+												return (
+													<div key={`${month.key}-days`} className="flex" style={{ width: `${month.days * dayWidth}px` }}>
+														{Array.from({ length: month.days }, (_, index) => {
+															const currentDate = new Date(segmentStart);
+															currentDate.setDate(segmentStart.getDate() + index);
+															const isWeekend = currentDate.getDay() === 0 || currentDate.getDay() === 6;
+															const isToday = toISODate(currentDate) === toISODate(new Date());
+															return (
+																<div
+																	key={index}
+																	className={`flex items-center justify-center border-r border-slate-100 text-gray-600 ${dayLabelClass} ${isWeekend ? 'bg-red-50' : ''} ${isToday ? 'bg-red-500 text-white font-bold' : ''}`}
+																	style={{ width: `${dayWidth}px`, ...dayLabelStyle }}
+																>
+																	{month.startDay + index}
+																</div>
+															);
+														})}
+													</div>
+												);
+											})}
+										</div>
+									</div>
+
+									<div>
+										{tasks.map((task) => {
+											const position = getTaskPosition(task.start, task.end);
+											const isActive = draggingTaskId === task.id || resizingTaskId === task.id;
+											return (
+												<div
+													key={`timeline-${task.id}`}
+													className={`relative h-12 border-b border-slate-200 ${isActive ? 'bg-blue-50/40' : 'bg-white'}`}
+												>
+													<div className="absolute inset-0 flex pointer-events-none">
+														{monthSegments.map((month) => {
+															const [year, monthIndex] = month.key.split('-').map(Number);
+															const segmentStart = new Date(year, monthIndex, month.startDay);
+															return (
+																<div key={`${month.key}-grid`} className="flex" style={{ width: `${month.days * dayWidth}px` }}>
+																	{Array.from({ length: month.days }, (_, index) => {
+																		const currentDate = new Date(segmentStart);
+																		currentDate.setDate(segmentStart.getDate() + index);
+																		const isWeekend = currentDate.getDay() === 0 || currentDate.getDay() === 6;
+																		const isToday = toISODate(currentDate) === toISODate(new Date());
+																		return (
+																			<div 
+																				key={index} 
+																				className={`border-r border-slate-100 h-full ${isWeekend ? 'bg-red-50/30' : ''} ${isToday ? 'bg-red-500/20' : ''}`} 
+																				style={{ width: `${dayWidth}px` }} 
+																			/>
+																		);
+																	})}
+																</div>
+															);
+														})}
+													</div>
+
+													<div
+														className={`absolute top-1/2 -translate-y-1/2 h-8 rounded-md shadow-md flex items-center text-white text-sm font-medium transition-shadow cursor-move select-none ${isActive ? 'shadow-lg ring-2 ring-white/40' : ''}`}
+														style={{ left: `${position.left}px`, width: `${position.width}px`, backgroundColor: task.color }}
+														onPointerDown={(event) => handleBarPointerDown(task.id, event)}
+														onPointerMove={handleBarPointerMove}
+														onPointerUp={handleBarPointerEnd}
+														onPointerCancel={handleBarPointerEnd}
+														onLostPointerCapture={handleBarPointerEnd}
+													>
+														<div
+															className="absolute left-0 top-0 bottom-0 w-2 cursor-ew-resize rounded-l-md hover:bg-white/40"
+															data-no-drag
+															onPointerDown={handleResizePointerDown(task.id, 'left')}
+															onPointerMove={handleResizePointerMove}
+															onPointerUp={handleResizePointerEnd}
+															onPointerCancel={handleResizePointerEnd}
+															onLostPointerCapture={handleResizePointerEnd}
+														/>
+
+														<div className="flex-1 px-3 truncate pointer-events-none">
+															{editingTaskId === task.id ? (
+																<input
+																	value={editingName}
+																	onChange={(event) => setEditingName(event.target.value)}
+																	onBlur={() => commitNameChange(task.id)}
+																	onKeyDown={(event) => {
+																	if (event.key === 'Enter') commitNameChange(task.id);
+																	if (event.key === 'Escape') {
+																		setEditingTaskId(null);
+																		setEditingName('');
+																	}
+																}}
+																	className="w-full bg-transparent outline-none border-b border-white/70 text-white pointer-events-auto"
+																	autoFocus
+																	data-no-drag
+																/>
+															) : (
+																<span 
+																	className="truncate block" 
+																	data-no-drag
+																	onDoubleClick={(e) => {
+																		e.stopPropagation();
+																		beginEditingName(task);
+																	}}
+																	title="Double-click to edit name"
+																>
+																	{task.name}
+																</span>
+															)}
+														</div>
+
+														<div
+															className="absolute right-0 top-0 bottom-0 w-2 cursor-ew-resize rounded-r-md hover:bg-white/40"
+															data-no-drag
+															onPointerDown={handleResizePointerDown(task.id, 'right')}
+															onPointerMove={handleResizePointerMove}
+															onPointerUp={handleResizePointerEnd}
+															onPointerCancel={handleResizePointerEnd}
+															onLostPointerCapture={handleResizePointerEnd}
+														/>
+													</div>
+												</div>
+											);
+										})}
+									</div>
+								</div>
+							</div>
+						</div>
+					</div>
+			</div>
+			{pendingDelete && (
+				<div
+					className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm px-4"
+					onClick={cancelDeleteTask}
+				>
+					<div
+						className="w-full max-w-md rounded-xl border border-slate-200 bg-white p-6 shadow-2xl"
+						onClick={(event) => event.stopPropagation()}
+					>
+						<h2 className="text-lg font-semibold text-gray-800">Delete Task</h2>
+						<p className="mt-2 text-sm text-gray-600">
+							Are you sure you want to delete <span className="font-semibold text-gray-800">“{pendingDelete.name}”</span>?
+						</p>
+						<div className="mt-6 flex justify-end gap-3">
+							<button
+								type="button"
+								onClick={cancelDeleteTask}
+								className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-slate-100"
+							>
+								Cancel
+							</button>
+							<button
+								type="button"
+								onClick={confirmDeleteTask}
+								className="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700"
+							>
+								Delete
+							</button>
+						</div>
+					</div>
+				</div>
+			)}
+
+			{colorPickerOpen && (
+				<div 
+					className="fixed bg-white border-2 border-gray-400 rounded-lg shadow-2xl p-4 grid grid-cols-4 gap-3 z-[9999] min-w-[180px]"
+					style={{ 
+						top: `${colorPickerOpen.top}px`, 
+						left: `${colorPickerOpen.left}px`,
+						transform: 'translateX(-50%)'
+					}}
+				>
+					{COLOR_OPTIONS.map((option) => (
+						<button
+							key={option.value}
+							type="button"
+							onClick={() => {
+								if (colorPickerOpen.id === 'newTask') {
+									handleNewTaskChange('color', option.value);
+								} else {
+									handleTaskColorChange(colorPickerOpen.id, option.value);
+								}
+								setColorPickerOpen(null);
+							}}
+							className={`w-8 h-8 rounded border-2 ${
+								(colorPickerOpen.id === 'newTask' ? newTask.color : tasks.find(t => t.id === colorPickerOpen.id)?.color) === option.value 
+									? 'border-gray-900 ring-2 ring-blue-400' 
+									: 'border-gray-400'
+							} hover:border-gray-700 hover:scale-110 transition-all`}
+							style={{ backgroundColor: option.value }}
+							title={option.name}
+						/>
+					))}
+				</div>
+					</div>
+				</div>
+			)}
+		</div>
+		</div>
+	);
+}
+

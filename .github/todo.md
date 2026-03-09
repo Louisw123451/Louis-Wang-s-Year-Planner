@@ -1,0 +1,1 @@
+- [x] Delete src/LandingPage.js and remove any related references

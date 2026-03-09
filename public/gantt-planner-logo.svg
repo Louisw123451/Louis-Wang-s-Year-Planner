@@ -1,0 +1,156 @@
+<svg viewBox="0 0 240 240" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <!-- Premium gradients -->
+    <linearGradient id="mainGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#667eea;stop-opacity:1" />
+      <stop offset="50%" style="stop-color:#764ba2;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#f093fb;stop-opacity:1" />
+    </linearGradient>
+    
+    <linearGradient id="accentGrad1" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#4facfe;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#00f2fe;stop-opacity:1" />
+    </linearGradient>
+    
+    <linearGradient id="accentGrad2" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#fa709a;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#fee140;stop-opacity:1" />
+    </linearGradient>
+    
+    <linearGradient id="accentGrad3" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#30cfd0;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#330867;stop-opacity:1" />
+    </linearGradient>
+    
+    <linearGradient id="bgGlow" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#667eea;stop-opacity:0.3" />
+      <stop offset="100%" style="stop-color:#f093fb;stop-opacity:0.3" />
+    </linearGradient>
+    
+    <!-- Advanced filters -->
+    <filter id="dramaticShadow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="8"/>
+      <feOffset dx="0" dy="8" result="offsetblur"/>
+      <feComponentTransfer>
+        <feFuncA type="linear" slope="0.5"/>
+      </feComponentTransfer>
+      <feMerge>
+        <feMergeNode/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    
+    <filter id="innerGlow">
+      <feGaussianBlur stdDeviation="4" result="coloredBlur"/>
+      <feMerge>
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    
+    <filter id="neonGlow">
+      <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
+      <feMerge>
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  
+  <!-- Ambient background glow -->
+  <circle cx="120" cy="110" r="100" fill="url(#bgGlow)" filter="url(#innerGlow)"/>
+  
+  <!-- 3D Container with dramatic perspective -->
+  <g filter="url(#dramaticShadow)">
+    <!-- Back panel (depth) -->
+    <path d="M 55 60 L 180 45 L 190 50 L 195 155 L 185 170 L 60 185 L 50 180 L 50 65 Z" 
+          fill="#1a1a2e" opacity="0.6"/>
+    
+    <!-- Main card -->
+    <rect x="50" y="55" width="135" height="120" rx="20" 
+          fill="url(#mainGrad)" 
+          stroke="url(#accentGrad1)" 
+          stroke-width="1.5"/>
+    
+    <!-- Glass morphism overlay -->
+    <rect x="50" y="55" width="135" height="120" rx="20" 
+          fill="white" opacity="0.1"/>
+    
+    <!-- Top highlight for depth -->
+    <path d="M 70 55 Q 50 55 50 75 L 50 60 Q 50 55 55 55 L 180 55 Q 185 55 185 60 L 185 65 Q 180 60 175 60 Z" 
+          fill="white" opacity="0.3"/>
+    
+    <!-- Right edge shadow -->
+    <path d="M 185 60 L 190 55 L 195 155 L 190 165 L 185 170 L 185 60 Z" 
+          fill="#0f0f1e" opacity="0.4"/>
+  </g>
+  
+  <!-- Modern timeline header -->
+  <rect x="60" y="70" width="115" height="22" rx="6" 
+        fill="white" opacity="0.15" filter="url(#neonGlow)"/>
+  
+  <!-- Animated-style timeline dots -->
+  <g opacity="0.9">
+    <circle cx="75" cy="81" r="3" fill="url(#accentGrad1)" filter="url(#neonGlow)"/>
+    <circle cx="95" cy="81" r="3" fill="url(#accentGrad1)" filter="url(#neonGlow)"/>
+    <circle cx="115" cy="81" r="3" fill="url(#accentGrad1)" filter="url(#neonGlow)"/>
+    <circle cx="135" cy="81" r="3" fill="url(#accentGrad1)" filter="url(#neonGlow)"/>
+    <circle cx="155" cy="81" r="3" fill="url(#accentGrad1)" filter="url(#neonGlow)"/>
+  </g>
+  
+  <!-- Premium 3D Gantt bars -->
+  <g filter="url(#dramaticShadow)">
+    <!-- Bar 1 - Cyan gradient -->
+    <rect x="65" y="105" width="75" height="16" rx="8" fill="url(#accentGrad1)"/>
+    <rect x="65" y="103" width="75" height="5" rx="4" fill="white" opacity="0.4"/>
+    <rect x="65" y="117" width="75" height="4" rx="3" fill="black" opacity="0.2"/>
+    
+    <!-- Bar 2 - Pink/Yellow gradient -->
+    <rect x="80" y="130" width="85" height="16" rx="8" fill="url(#accentGrad2)"/>
+    <rect x="80" y="128" width="85" height="5" rx="4" fill="white" opacity="0.4"/>
+    <rect x="80" y="142" width="85" height="4" rx="3" fill="black" opacity="0.2"/>
+    
+    <!-- Bar 3 - Teal/Purple gradient -->
+    <rect x="70" y="155" width="68" height="16" rx="8" fill="url(#accentGrad3)"/>
+    <rect x="70" y="153" width="68" height="5" rx="4" fill="white" opacity="0.4"/>
+    <rect x="70" y="167" width="68" height="4" rx="3" fill="black" opacity="0.2"/>
+  </g>
+  
+  <!-- Floating accent elements -->
+  <circle cx="170" cy="145" r="12" fill="url(#accentGrad1)" opacity="0.6" filter="url(#neonGlow)"/>
+  <circle cx="167" cy="142" r="6" fill="white" opacity="0.3"/>
+  
+  <rect x="62" y="98" width="6" height="6" rx="2" fill="url(#accentGrad2)" opacity="0.7" 
+        transform="rotate(45 65 101)"/>
+  
+  <!-- Ultra-modern typography -->
+  <text x="120" y="203" 
+        font-family="'Inter', 'SF Pro Display', system-ui, -apple-system, sans-serif" 
+        font-size="28" 
+        font-weight="900" 
+        fill="url(#mainGrad)" 
+        text-anchor="middle"
+        letter-spacing="2"
+        filter="url(#neonGlow)">
+    GANTT
+  </text>
+  
+  <text x="120" y="220" 
+        font-family="'Inter', 'SF Pro Display', system-ui, -apple-system, sans-serif" 
+        font-size="12" 
+        font-weight="700"
+        fill="#9ca3af" 
+        text-anchor="middle"
+        letter-spacing="4"
+        opacity="0.8">
+    PLANNER
+  </text>
+  
+  <!-- Premium shine effect -->
+  <ellipse cx="100" cy="75" rx="40" ry="20" 
+           fill="white" opacity="0.15" 
+           transform="rotate(-15 100 75)"/>
+</svg>

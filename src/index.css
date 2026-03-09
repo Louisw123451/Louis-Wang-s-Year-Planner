@@ -1,0 +1,80 @@
+﻿@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ── Hero headline gradient animation ── */
+@keyframes gradientShift {
+  0%   { background-position: 0% 50%; }
+  50%  { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+.hero-gradient-text {
+  background-size: 200% 200%;
+  animation: gradientShift 4s ease infinite;
+  -webkit-background-clip: text;
+  background-clip: text;
+  /* color is set to transparent via Tailwind text-transparent class */
+}
+
+/* ── Rotating word fade-slide animation ── */
+@keyframes wordIn {
+  0%   { opacity: 0; transform: translateY(14px); }
+  20%  { opacity: 1; transform: translateY(0); }
+  80%  { opacity: 1; transform: translateY(0); }
+  100% { opacity: 0; transform: translateY(-14px); }
+}
+.word-cycle {
+  display: inline-block;
+  animation: wordIn 3s ease-in-out infinite;
+}
+
+/* ── Google Translate widget dark-mode overrides ── */
+.goog-te-gadget {
+  font-family: inherit !important;
+  font-size: 0 !important;
+}
+.goog-te-gadget .goog-te-combo {
+  font-family: inherit !important;
+  font-size: 0.75rem !important;
+  padding: 5px 10px !important;
+  border-radius: 8px !important;
+  border: 1px solid rgba(255,255,255,0.2) !important;
+  background: rgba(255,255,255,0.05) !important;
+  color: #e2e8f0 !important;
+  cursor: pointer !important;
+  outline: none !important;
+  transition: background 0.2s;
+}
+/* Light theme override */
+body.lp-light .goog-te-gadget .goog-te-combo {
+  border: 1px solid rgba(0,0,0,0.15) !important;
+  background: rgba(0,0,0,0.05) !important;
+  color: #1e293b !important;
+}
+.goog-te-gadget .goog-te-combo:hover {
+  background: rgba(255,255,255,0.12) !important;
+}
+.goog-logo-link,
+.goog-te-gadget span:not(.goog-te-combo) {
+  display: none !important;
+}
+/* Hide the top-of-page translate banner */
+.goog-te-banner-frame,
+.skiptranslate { display: none !important; }
+body { top: 0 !important; }
+
+/* ── Light theme global ── */
+body.lp-light {
+  background-color: #f1f5f9;
+  color: #0f172a;
+}
+
