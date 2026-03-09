@@ -264,23 +264,28 @@ export default function LandingPage({ onOpen }) {
 
         {/* Animated headline */}
         <h1 className="text-5xl sm:text-6xl md:text-7xl font-extrabold leading-tight mb-6 text-center w-full">
-          <span
-            className="hero-gradient-text text-transparent block"
-            style={{ backgroundImage: `linear-gradient(135deg, ${accentCfg.from}, ${accentCfg.via}, ${accentCfg.to})` }}
-          >
-            Plan your entire
-          </span>
-          <span className="block text-center" style={{ minHeight: '1.4em', overflow: 'visible', lineHeight: '1.4' }}>
+          {/* Line 1: "Plan your entire [rotating word]" — word in fixed-width box so "Plan your entire" never shifts */}
+          <span style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'center', overflow: 'visible', whiteSpace: 'nowrap' }}>
             <span
-              key={wordIdx}
-              className="word-cycle hero-gradient-text text-transparent"
-              style={{ backgroundImage: `linear-gradient(135deg, ${accentCfg.from}, ${accentCfg.via}, ${accentCfg.to})` }}
+              className="hero-gradient-text text-transparent"
+              style={{ backgroundImage: `linear-gradient(135deg, ${accentCfg.from}, ${accentCfg.via}, ${accentCfg.to})`, marginRight: '0.25em' }}
             >
-              {CYCLE_WORDS[wordIdx]}
+              Plan your entire
+            </span>
+            {/* Fixed-width slot sized to longest word ("projects") so static text never moves */}
+            <span style={{ display: 'inline-block', width: '3.8em', overflow: 'visible', textAlign: 'left' }}>
+              <span
+                key={wordIdx}
+                className="word-cycle hero-gradient-text text-transparent"
+                style={{ backgroundImage: `linear-gradient(135deg, ${accentCfg.from}, ${accentCfg.via}, ${accentCfg.to})` }}
+              >
+                {CYCLE_WORDS[wordIdx]}
+              </span>
             </span>
           </span>
+          {/* Line 2: "at a glance" */}
           <span
-            className="hero-gradient-text text-transparent block"
+            className="hero-gradient-text text-transparent block text-center"
             style={{ backgroundImage: `linear-gradient(135deg, ${accentCfg.from}, ${accentCfg.via}, ${accentCfg.to})` }}
           >
             at a glance

@@ -31,10 +31,10 @@ body {
 
 /* ── Rotating word fade-slide animation ── */
 @keyframes wordIn {
-  0%   { opacity: 0; transform: translateY(10px); }
-  20%  { opacity: 1; transform: translateY(0); }
-  80%  { opacity: 1; transform: translateY(0); }
-  100% { opacity: 0; transform: translateY(-10px); }
+  0%   { opacity: 0; transform: translateY(8px); }
+  15%  { opacity: 1; transform: translateY(0); }
+  85%  { opacity: 1; transform: translateY(0); }
+  100% { opacity: 0; transform: translateY(-8px); }
 }
 .word-cycle {
   display: inline-block;
@@ -44,6 +44,9 @@ body {
   padding-bottom: 0.2em;
   letter-spacing: -0.03em;
   line-height: 1.1;
+  min-width: 5ch;
+  text-align: left;
+  vertical-align: baseline;
 }
 
 /* ── Google Translate widget dark-mode overrides ── */
