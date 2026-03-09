@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { Plus, Trash2, Save, Undo, Redo, X, MessageSquare } from 'lucide-react';
 
 const NAME_COLUMN_WIDTH = 200;
