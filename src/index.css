@@ -22,7 +22,8 @@ body {
   animation: gradientShift 4s ease infinite;
   -webkit-background-clip: text;
   background-clip: text;
-  /* color is set to transparent via Tailwind text-transparent class */
+  padding-bottom: 0.15em;
+  display: inline-block;
 }
 
 /* ── Rotating word fade-slide animation ── */
