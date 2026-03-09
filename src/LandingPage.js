@@ -4,7 +4,10 @@ const PROJECTS_KEY = 'ganttProjects';
 const THEME_KEY    = 'ganttTheme';
 const ACCENT_KEY   = 'ganttAccent';
 
-// Accent colour definitions -- using inline style values so Tailwind purging never drops them
+// Words that cycle in the hero headline
+const CYCLE_WORDS = ['year', 'quarter', 'projects', 'sprints', 'goals', 'roadmap'];
+
+// Accent colour definitions 鈥?using inline style values so Tailwind purging never drops them
 const ACCENTS = [
   { id: 'blue',   label: 'Blue',   from: '#60a5fa', via: '#67e8f9', to: '#818cf8', btnBg: '#2563eb', btnHover: '#3b82f6', dot: '#3b82f6', glow: 'rgba(37,99,235,0.20)' },
   { id: 'purple', label: 'Purple', from: '#c084fc', via: '#f9a8d4', to: '#818cf8', btnBg: '#9333ea', btnHover: '#a855f7', dot: '#a855f7', glow: 'rgba(147,51,234,0.20)' },
@@ -109,6 +112,15 @@ export default function LandingPage({ onOpen }) {
   useEffect(() => {
     localStorage.setItem(ACCENT_KEY, accent);
   }, [accent]);
+
+  // 鈹€鈹€ Rotating headline word 鈹€鈹€
+  const [wordIdx, setWordIdx] = useState(0);
+  useEffect(() => {
+    const id = setInterval(() => {
+      setWordIdx(i => (i + 1) % CYCLE_WORDS.length);
+    }, 3000);
+    return () => clearInterval(id);
+  }, []);
 
   // 鈹€鈹€ Google Translate injection 鈹€鈹€
   useEffect(() => {
@@ -241,7 +253,7 @@ export default function LandingPage({ onOpen }) {
 
 
       {/* 鈹€鈹€ HERO 鈹€鈹€ */}
-      <section className={`relative flex flex-col items-center justify-center text-center pt-44 pb-28 px-6 ${isDark ? '' : 'bg-gradient-to-b from-white to-slate-100'}`}>
+      <section className={`relative flex flex-col items-center justify-center text-center pt-28 pb-20 px-6 ${isDark ? '' : 'bg-gradient-to-b from-white to-slate-100'}`}>
         {/* glow blobs */}
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[700px] h-[400px] rounded-full blur-[120px] pointer-events-none" style={{ backgroundColor: accentCfg.glow }} />
         <div className="absolute top-24 left-1/4 w-[300px] h-[300px] rounded-full blur-[100px] pointer-events-none opacity-50" style={{ backgroundColor: accentCfg.glow }} />
@@ -250,19 +262,29 @@ export default function LandingPage({ onOpen }) {
           Visual Planning Tool
         </span>
 
-        {/* Headline */}
-        <h1 className="text-6xl sm:text-7xl font-extrabold leading-tight mb-6 text-center">
+        {/* Animated headline */}
+        <h1 className="text-6xl sm:text-7xl font-extrabold leading-tight mb-6 text-center w-full">
           <span
             className="hero-gradient-text text-transparent block"
             style={{ backgroundImage: `linear-gradient(135deg, ${accentCfg.from}, ${accentCfg.via}, ${accentCfg.to})` }}
           >
             Plan your entire
           </span>
+          {/* rotating word — own centered line so layout never shifts */}
+          <span className="block text-center" style={{ minHeight: '1.2em' }}>
+            <span
+              key={wordIdx}
+              className="word-cycle hero-gradient-text text-transparent"
+              style={{ backgroundImage: `linear-gradient(135deg, ${accentCfg.from}, ${accentCfg.via}, ${accentCfg.to})` }}
+            >
+              {CYCLE_WORDS[wordIdx]}
+            </span>
+          </span>
           <span
             className="hero-gradient-text text-transparent block"
             style={{ backgroundImage: `linear-gradient(135deg, ${accentCfg.from}, ${accentCfg.via}, ${accentCfg.to})` }}
           >
-            year at a glance
+            at a glance
           </span>
         </h1>
 
