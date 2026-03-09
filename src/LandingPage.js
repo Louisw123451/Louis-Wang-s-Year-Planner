@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+﻿import React, { useState, useEffect, useRef } from 'react';
 
 const PROJECTS_KEY = 'ganttProjects';
 const THEME_KEY    = 'ganttTheme';
@@ -253,7 +253,7 @@ export default function LandingPage({ onOpen }) {
 
 
       {/* 鈹€鈹€ HERO 鈹€鈹€ */}
-      <section className={`relative flex flex-col items-center justify-center text-center pt-44 pb-28 px-6 overflow-hidden ${isDark ? '' : 'bg-gradient-to-b from-white to-slate-100'}`}>
+      <section className={`relative flex flex-col items-center justify-center text-center pt-44 pb-28 px-6 ${isDark ? '' : 'bg-gradient-to-b from-white to-slate-100'}`}>
         {/* glow blobs */}
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[700px] h-[400px] rounded-full blur-[120px] pointer-events-none" style={{ backgroundColor: accentCfg.glow }} />
         <div className="absolute top-24 left-1/4 w-[300px] h-[300px] rounded-full blur-[100px] pointer-events-none opacity-50" style={{ backgroundColor: accentCfg.glow }} />
@@ -263,20 +263,23 @@ export default function LandingPage({ onOpen }) {
         </span>
 
         {/* Animated headline */}
-        <h1 className="text-6xl sm:text-7xl font-extrabold leading-tight max-w-4xl mb-6">
+        <h1 className="text-6xl sm:text-7xl font-extrabold leading-tight max-w-4xl mb-6 text-center">
           <span
             className="hero-gradient-text text-transparent"
             style={{ backgroundImage: `linear-gradient(135deg, ${accentCfg.from}, ${accentCfg.via}, ${accentCfg.to})` }}
           >
-            Plan your entire{' '}
+            Plan your entire
           </span>
-          {/* rotating word */}
-          <span
-            key={wordIdx}
-            className="word-cycle hero-gradient-text text-transparent"
-            style={{ backgroundImage: `linear-gradient(135deg, ${accentCfg.from}, ${accentCfg.via}, ${accentCfg.to})` }}
-          >
-            {CYCLE_WORDS[wordIdx]}
+          <br />
+          {/* rotating word — fixed height container so layout never shifts */}
+          <span style={{ display: 'inline-block', minWidth: '320px', textAlign: 'center' }}>
+            <span
+              key={wordIdx}
+              className="word-cycle hero-gradient-text text-transparent"
+              style={{ backgroundImage: `linear-gradient(135deg, ${accentCfg.from}, ${accentCfg.via}, ${accentCfg.to})` }}
+            >
+              {CYCLE_WORDS[wordIdx]}
+            </span>
           </span>
           <br />
           <span
