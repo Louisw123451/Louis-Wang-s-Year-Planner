@@ -263,39 +263,25 @@ export default function LandingPage({ onOpen }) {
         </span>
 
         {/* Animated headline */}
-        <h1 className="text-5xl sm:text-6xl md:text-7xl font-extrabold mb-6 text-center w-full" style={{ lineHeight: 1.2 }}>
-          {/* Line 1: "Plan your entire [word]" — word uses absolute pos so static text is always centred on full line */}
-          <span style={{ display: 'block', textAlign: 'center', whiteSpace: 'nowrap' }}>
+        <h1 className="text-5xl sm:text-6xl md:text-7xl font-extrabold leading-tight mb-6 text-center w-full">
+          <span
+            className="hero-gradient-text text-transparent block"
+            style={{ backgroundImage: `linear-gradient(135deg, ${accentCfg.from}, ${accentCfg.via}, ${accentCfg.to})` }}
+          >
+            Plan your entire
+          </span>
+          <span className="block" style={{ minHeight: '1.3em' }}>
             <span
-              className="hero-gradient-text text-transparent"
+              key={wordIdx}
+              className="word-cycle hero-gradient-text text-transparent"
               style={{ backgroundImage: `linear-gradient(135deg, ${accentCfg.from}, ${accentCfg.via}, ${accentCfg.to})` }}
             >
-              Plan your entire&nbsp;
-            </span>
-            <span style={{ position: 'relative', display: 'inline-block', minWidth: '5.2em' }}>
-              <span
-                key={wordIdx}
-                className="word-cycle hero-gradient-text text-transparent"
-                style={{
-                  backgroundImage: `linear-gradient(135deg, ${accentCfg.from}, ${accentCfg.via}, ${accentCfg.to})`,
-                  position: 'absolute',
-                  left: 0,
-                  top: 0,
-                  whiteSpace: 'nowrap',
-                }}
-              >
-                {CYCLE_WORDS[wordIdx]}
-              </span>
-              {/* invisible longest word to hold space */}
-              <span aria-hidden="true" style={{ visibility: 'hidden', pointerEvents: 'none' }}
-                className="hero-gradient-text"
-              >projects</span>
+              {CYCLE_WORDS[wordIdx]}
             </span>
           </span>
-          {/* Line 2 */}
           <span
-            className="hero-gradient-text text-transparent"
-            style={{ backgroundImage: `linear-gradient(135deg, ${accentCfg.from}, ${accentCfg.via}, ${accentCfg.to})`, display: 'block', textAlign: 'center' }}
+            className="hero-gradient-text text-transparent block"
+            style={{ backgroundImage: `linear-gradient(135deg, ${accentCfg.from}, ${accentCfg.via}, ${accentCfg.to})` }}
           >
             at a glance
           </span>
