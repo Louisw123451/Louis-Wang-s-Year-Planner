@@ -380,7 +380,7 @@ export default function LandingPage({ onOpen }) {
                     <button onClick={(e) => { e.stopPropagation(); openProject(p); }}
                       style={{ color: accentCfg.btnBg }}
                       className={`flex-1 py-3 text-sm font-medium transition ${isDark ? 'hover:bg-white/10' : 'hover:bg-slate-50'}`}>
-                      Open 鈫?
+                      Open &rarr;
                     </button>
                     <button onClick={(e) => { e.stopPropagation(); setDeleteConfirm(p.id); }}
                       className={`px-4 py-3 text-sm text-red-400 hover:bg-red-600/10 transition border-l ${isDark ? 'border-white/10' : 'border-slate-100'}`}>
